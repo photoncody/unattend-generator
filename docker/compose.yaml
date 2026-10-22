@@ -1,0 +1,25 @@
+# Run from this directory:  docker compose up --build
+services:
+  unattendhost:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: unattendhost:local
+    restart: unless-stopped
+
+    # Bind to one LAN interface only. The web UI has no login, and the generated files can
+    # contain passwords, so this must never be reachable from the internet. Set
+    # UNATTENDHOST_BIND to the host's LAN address (for example 192.168.1.10); the default
+    # only listens on this machine.
+    ports:
+      - "${UNATTENDHOST_BIND:-127.0.0.1}:8080:8080"
+
+    # The app needs no write access and no privileges. It also makes no outbound network
+    # calls, so blocking egress for this container on the host is a reasonable extra step.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

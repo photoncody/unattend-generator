@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\UnattendHost.Core\UnattendHost.Core.csproj" />
+    <ProjectReference Include="..\..\src\UnattendHost.Web\UnattendHost.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- See docs/dependencies.md before adding packages. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+  </ItemGroup>
+
+</Project>

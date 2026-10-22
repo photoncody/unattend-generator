@@ -1,0 +1,36 @@
+@model ResultView
+
+<section class="result">
+    <h1>autounattend.xml is ready</h1>
+
+    @if (Model.Warnings.Count > 0)
+    {
+        <section class="notice warning">
+            <h2>Warnings</h2>
+            <ul>
+                @foreach (var warning in Model.Warnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        </section>
+    }
+
+    <div class="actions">
+        <form method="post" asp-page-handler="Download">
+            <input type="hidden" name="configJson" value="@Model.ConfigJson">
+            <button type="submit" class="primary">Download autounattend.xml</button>
+        </form>
+        <form method="post" asp-page-handler="DownloadPreset">
+            <input type="hidden" name="configJson" value="@Model.ConfigJson">
+            <button type="submit">Download preset JSON</button>
+        </form>
+        <form method="post" asp-page-handler="Edit">
+            <input type="hidden" name="configJson" value="@Model.ConfigJson">
+            <button type="submit">Back to editor</button>
+        </form>
+    </div>
+
+    <h2>XML preview</h2>
+    <pre class="code"><code>@Model.XmlText</code></pre>
+</section>

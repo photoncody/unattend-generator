@@ -1,0 +1,363 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = Model.Result is null ? "Generator" : "Result";
+    var form = Model.Form;
+    var catalog = Model.Catalog;
+
+    SelectList Options(IEnumerable<CatalogItem> items) => new(items, nameof(CatalogItem.Id), nameof(CatalogItem.Label));
+    var editions = Options(catalog.WindowsEditions);
+}
+
+@if (Model.Errors.Count > 0)
+{
+    <section class="notice error" role="alert">
+        <h2>The configuration has problems</h2>
+        <ul>
+            @foreach (var error in Model.Errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </section>
+}
+
+@if (Model.Result is { } result)
+{
+    <partial name="_Result" model="result" />
+    return;
+}
+
+<h1>Generate an answer file</h1>
+
+<section class="presets">
+    <form method="get" class="inline">
+        <label for="preset">Preset</label>
+        <select id="preset" name="preset">
+            @foreach (var name in Model.PresetNames)
+            {
+                <option value="@name" selected="@(name == Model.LoadedPreset)">@name</option>
+            }
+        </select>
+        <button type="submit" disabled="@(Model.PresetNames.Count == 0)">Load</button>
+    </form>
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="inline">
+        <label for="presetFile">or a preset file</label>
+        <input type="file" id="presetFile" name="presetFile" accept=".json,application/json" required>
+        <button type="submit">Load file</button>
+    </form>
+</section>
+
+<form method="post" asp-page-handler="Generate" class="generator">
+
+    <div class="field">
+        <label asp-for="Form.TargetOs">Target OS</label>
+        <select asp-for="Form.TargetOs">
+            <option value="Windows11">Windows 11</option>
+            <option value="Windows10">Windows 10</option>
+            <option value="Server2025" disabled>Windows Server 2025 (phase 2)</option>
+            <option value="Server2022" disabled>Windows Server 2022 (phase 2)</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label asp-for="Form.Description">Description</label>
+        <input asp-for="Form.Description" placeholder="Optional; shown in the preset list">
+    </div>
+
+    <details open>
+        <summary>Language, region and keyboard</summary>
+        <div class="field">
+            <label asp-for="Form.LanguageMode">Settings</label>
+            <select asp-for="Form.LanguageMode">
+                <option value="Interactive">Ask during setup</option>
+                <option value="Unattended">Set in the answer file</option>
+            </select>
+        </div>
+        <div data-show-if="Form_LanguageMode:Unattended">
+            <div class="field">
+                <label asp-for="Form.ImageLanguage">Windows display language</label>
+                <select asp-for="Form.ImageLanguage" asp-items="Options(catalog.ImageLanguages)">
+                    <option value="">(choose)</option>
+                </select>
+            </div>
+            @for (int i = 0; i < form.Locales.Count; i++)
+            {
+                <div class="row">
+                    <div class="field">
+                        <label asp-for="Form.Locales[i].Locale">@(i == 0 ? "Locale (default)" : $"Locale {i + 1}")</label>
+                        <select asp-for="Form.Locales[i].Locale" asp-items="Options(catalog.UserLocales)">
+                            <option value="">@(i == 0 ? "(choose)" : "(none)")</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Form.Locales[i].Keyboard">Keyboard</label>
+                        <select asp-for="Form.Locales[i].Keyboard" asp-items="Options(catalog.KeyboardIdentifiers)">
+                            <option value="">@(i == 0 ? "(choose)" : "(none)")</option>
+                        </select>
+                    </div>
+                </div>
+            }
+            <div class="field">
+                <label asp-for="Form.GeoLocation">Home location</label>
+                <select asp-for="Form.GeoLocation" asp-items="Options(catalog.GeoLocations)">
+                    <option value="">(choose)</option>
+                </select>
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary>Setup, edition and partitioning</summary>
+        <div class="field">
+            <label asp-for="Form.SetupMode">Windows PE stage</label>
+            <select asp-for="Form.SetupMode">
+                <option value="Standard">Standard Windows Setup (interactive partitioning)</option>
+                <option value="Scripted">Generated script (partitions the disk and applies the image)</option>
+            </select>
+        </div>
+
+        <div data-show-if="Form_SetupMode:Standard">
+            <div class="field">
+                <label asp-for="Form.EditionMode">Edition</label>
+                <select asp-for="Form.EditionMode">
+                    <option value="Interactive">Ask during setup</option>
+                    <option value="Firmware">Use the key stored in the firmware</option>
+                    <option value="Edition">Generic key for an edition</option>
+                    <option value="ProductKey">Specific product key</option>
+                </select>
+            </div>
+            <div class="field" data-show-if="Form_EditionMode:Edition">
+                <label asp-for="Form.Edition">Edition to install</label>
+                <select asp-for="Form.Edition" asp-items="editions">
+                    <option value="">(choose)</option>
+                </select>
+            </div>
+            <div class="field" data-show-if="Form_EditionMode:ProductKey">
+                <label asp-for="Form.ProductKey">Product key</label>
+                <input asp-for="Form.ProductKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off">
+            </div>
+            <label class="check"><input asp-for="Form.BypassRequirementsCheck"> Bypass TPM, Secure Boot and RAM requirement checks</label>
+        </div>
+
+        <div data-show-if="Form_SetupMode:Scripted">
+            <div class="field">
+                <label asp-for="Form.ImageMode">Image to install</label>
+                <select asp-for="Form.ImageMode">
+                    <option value="Interactive">Ask during setup</option>
+                    <option value="Edition">By edition</option>
+                    <option value="Index">By index in install.wim</option>
+                    <option value="Name">By image name</option>
+                </select>
+            </div>
+            <div class="field" data-show-if="Form_ImageMode:Edition">
+                <label asp-for="Form.ImageEdition">Edition</label>
+                <select asp-for="Form.ImageEdition" asp-items="editions">
+                    <option value="">(choose)</option>
+                </select>
+            </div>
+            <div class="field" data-show-if="Form_ImageMode:Index">
+                <label asp-for="Form.ImageIndex">Image index</label>
+                <input asp-for="Form.ImageIndex" type="number" min="1">
+            </div>
+            <div class="field" data-show-if="Form_ImageMode:Name">
+                <label asp-for="Form.ImageName">Image name</label>
+                <input asp-for="Form.ImageName" placeholder="As shown by dism /Get-WimInfo">
+            </div>
+
+            <div class="field">
+                <label asp-for="Form.PartitionMode">Partitioning</label>
+                <select asp-for="Form.PartitionMode">
+                    <option value="Interactive">Partition by hand during setup</option>
+                    <option value="Unattended">Wipe the target disk and create the standard layout</option>
+                    <option value="CustomScript">Run my diskpart script</option>
+                </select>
+            </div>
+            <div data-show-if="Form_PartitionMode:Unattended">
+                <div class="row">
+                    <div class="field">
+                        <label asp-for="Form.PartitionLayout">Layout</label>
+                        <select asp-for="Form.PartitionLayout">
+                            <option value="Gpt">GPT (UEFI)</option>
+                            <option value="Mbr">MBR (BIOS)</option>
+                            <option value="Automatic">Match the firmware at install time</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Form.SystemPartitionSizeMiB">System partition (MiB)</label>
+                        <input asp-for="Form.SystemPartitionSizeMiB" type="number" min="1">
+                    </div>
+                </div>
+                <label class="check"><input asp-for="Form.RecoveryPartition"> Create a recovery partition</label>
+                <div class="field" data-show-if="Form_RecoveryPartition:true">
+                    <label asp-for="Form.RecoveryPartitionSizeMiB">Recovery partition (MiB)</label>
+                    <input asp-for="Form.RecoveryPartitionSizeMiB" type="number" min="1">
+                </div>
+                <div class="field">
+                    <label asp-for="Form.TargetDiskMode">Target disk</label>
+                    <select asp-for="Form.TargetDiskMode">
+                        <option value="Fixed">Disk with a fixed index</option>
+                        <option value="Auto">The only disk that matches the criteria below</option>
+                        <option value="Interactive">Ask during setup</option>
+                    </select>
+                </div>
+                <div class="field" data-show-if="Form_TargetDiskMode:Fixed|Auto">
+                    <label asp-for="Form.TargetDiskIndex">Disk index</label>
+                    <input asp-for="Form.TargetDiskIndex" type="number" min="0">
+                </div>
+                <div data-show-if="Form_TargetDiskMode:Auto">
+                    <div class="row">
+                        <div class="field">
+                            <label asp-for="Form.TargetDiskMinSizeGiB">Minimum size (GiB)</label>
+                            <input asp-for="Form.TargetDiskMinSizeGiB" type="number" min="0">
+                        </div>
+                        <div class="field">
+                            <label asp-for="Form.TargetDiskMaxSizeGiB">Maximum size (GiB)</label>
+                            <input asp-for="Form.TargetDiskMaxSizeGiB" type="number" min="0">
+                        </div>
+                    </div>
+                    <label class="check"><input asp-for="Form.TargetDiskRequireNoPartitions"> Only accept a disk without partitions</label>
+                </div>
+                <p class="hint">Setup stops instead of wiping a disk if the criteria match no disk or more than one.</p>
+            </div>
+            <div class="field" data-show-if="Form_PartitionMode:CustomScript">
+                <label asp-for="Form.DiskpartScript">diskpart script</label>
+                <textarea asp-for="Form.DiskpartScript" rows="10" spellcheck="false"></textarea>
+                <p class="hint">Must assign drive letter W: to the Windows partition and S: to the system partition.</p>
+            </div>
+
+            <fieldset>
+                <legend>Script options</legend>
+                <label class="check"><input asp-for="Form.CompactOs"> Install with Compact OS</label>
+                <label class="check"><input asp-for="Form.SkipIntegrityCheck"> Skip image integrity check</label>
+                <label class="check"><input asp-for="Form.Disable8Dot3Names"> Disable 8.3 file names</label>
+                <label class="check"><input asp-for="Form.DisableDefender"> Disable Microsoft Defender</label>
+                <label class="check"><input asp-for="Form.PauseBeforeFormatting"> Pause before formatting</label>
+                <label class="check"><input asp-for="Form.PauseBeforeReboot"> Pause before rebooting</label>
+            </fieldset>
+        </div>
+
+        <div class="field">
+            <label asp-for="Form.ActivationKey">Activation key (optional)</label>
+            <input asp-for="Form.ActivationKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off">
+        </div>
+    </details>
+
+    <details open>
+        <summary>Computer name</summary>
+        <div class="field">
+            <label asp-for="Form.ComputerNameMode">Computer name</label>
+            <select asp-for="Form.ComputerNameMode">
+                <option value="Random">Random name chosen by Windows</option>
+                <option value="Custom">Fixed name</option>
+                <option value="Prompt">Ask during setup</option>
+            </select>
+        </div>
+        <div class="field" data-show-if="Form_ComputerNameMode:Custom">
+            <label asp-for="Form.ComputerName">Name</label>
+            <input asp-for="Form.ComputerName" maxlength="15">
+        </div>
+    </details>
+
+    <details open>
+        <summary>User accounts</summary>
+        <div class="field">
+            <label asp-for="Form.AccountMode">Accounts</label>
+            <select asp-for="Form.AccountMode">
+                <option value="InteractiveMicrosoft">Ask during setup (Microsoft account)</option>
+                <option value="InteractiveLocal">Ask during setup (local account)</option>
+                <option value="Unattended">Create these local accounts</option>
+            </select>
+        </div>
+        <div data-show-if="Form_AccountMode:Unattended">
+            <table class="rows">
+                <thead>
+                    <tr><th>Name</th><th>Display name</th><th>Password</th><th>Group</th></tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < form.Users.Count; i++)
+                    {
+                        <tr>
+                            <td><input asp-for="Form.Users[i].Name" aria-label="Name" maxlength="20" autocomplete="off"></td>
+                            <td><input asp-for="Form.Users[i].DisplayName" aria-label="Display name" autocomplete="off"></td>
+                            <td><input type="password" name="Form.Users[@i].Password" value="@form.Users[i].Password" aria-label="Password" autocomplete="new-password"></td>
+                            <td>
+                                <select asp-for="Form.Users[i].Group" aria-label="Group">
+                                    <option value="Administrators">Administrators</option>
+                                    <option value="Users">Users</option>
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p class="hint">Leave a row empty to skip it. Generate and go back to the editor to get more rows.</p>
+            <div class="field">
+                <label asp-for="Form.AutoLogon">Log on automatically</label>
+                <select asp-for="Form.AutoLogon">
+                    <option value="None">No</option>
+                    <option value="FirstAdministrator">As the first administrator above</option>
+                    <option value="BuiltinAdministrator">As the built-in Administrator</option>
+                </select>
+            </div>
+            <div class="field" data-show-if="Form_AutoLogon:BuiltinAdministrator">
+                <label for="Form_BuiltinAdministratorPassword">Built-in Administrator password</label>
+                <input type="password" id="Form_BuiltinAdministratorPassword" name="Form.BuiltinAdministratorPassword" value="@form.BuiltinAdministratorPassword" autocomplete="new-password">
+            </div>
+            <label class="check"><input asp-for="Form.ObscurePasswords"> Base64-encode passwords in the XML (not encryption)</label>
+        </div>
+        <label class="check"><input asp-for="Form.KeepSensitiveFiles"> Keep the answer file on the installed system</label>
+        <p class="hint">Otherwise it is deleted at first logon. With unattended accounts, deleting it requires automatic logon as an administrator.</p>
+        <label class="check"><input asp-for="Form.BypassNetworkCheck"> Allow setup to finish without a network connection</label>
+    </details>
+
+    <details>
+        <summary>Remove bloatware</summary>
+        <div class="checklist">
+            @foreach (var item in catalog.Bloatwares)
+            {
+                <label class="check">
+                    <input type="checkbox" name="Form.Bloatware" value="@item.Id" checked="@form.Bloatware.Contains(item.Id, StringComparer.OrdinalIgnoreCase)">
+                    @item.DisplayName
+                </label>
+            }
+        </div>
+    </details>
+
+    <details>
+        <summary>Custom scripts</summary>
+        @for (int i = 0; i < form.Scripts.Count; i++)
+        {
+            <fieldset class="script">
+                <legend>Script @(i + 1)</legend>
+                <div class="row">
+                    <div class="field">
+                        <label asp-for="Form.Scripts[i].Phase">Runs</label>
+                        <select asp-for="Form.Scripts[i].Phase">
+                            <option value="System">In the system context, before accounts are created</option>
+                            <option value="FirstLogon">When the first user logs on</option>
+                            <option value="UserOnce">When each user logs on for the first time</option>
+                            <option value="DefaultUser">Against the default user's registry hive</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Form.Scripts[i].Type">Type</label>
+                        <select asp-for="Form.Scripts[i].Type">
+                            <option value="Ps1">PowerShell (.ps1)</option>
+                            <option value="Cmd">Command script (.cmd)</option>
+                            <option value="Reg">Registry file (.reg)</option>
+                            <option value="Vbs">VBScript (.vbs)</option>
+                        </select>
+                    </div>
+                </div>
+                <textarea asp-for="Form.Scripts[i].Content" rows="6" spellcheck="false" aria-label="Script content"></textarea>
+            </fieldset>
+        }
+        <p class="hint">Leave a script empty to skip it. Generate and go back to the editor to get more slots.</p>
+        <label class="check"><input asp-for="Form.RestartExplorer"> Restart Explorer after the per-user scripts</label>
+    </details>
+
+    <div class="actions">
+        <button type="submit" class="primary">Generate</button>
+    </div>
+</form>

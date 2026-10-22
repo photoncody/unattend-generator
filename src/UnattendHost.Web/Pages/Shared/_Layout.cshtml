@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@ViewData["Title"] - UnattendHost</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="/">UnattendHost</a>
+        <span class="tagline">autounattend.xml generator</span>
+    </header>
+    <main>
+        @RenderBody()
+    </main>
+    <footer class="site-footer">
+        Built on <a href="https://github.com/cschneegans/unattend-generator">cschneegans/unattend-generator</a>
+        @if (BuildInfo.UpstreamCommit is { } commit)
+        {
+            <text>at commit <code>@commit[..12]</code></text>
+        }
+        else
+        {
+            <text>(upstream commit unknown)</text>
+        }
+    </footer>
+    <script src="~/js/generator.js" asp-append-version="true"></script>
+</body>
+</html>

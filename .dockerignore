@@ -1,0 +1,9 @@
+# .git is deliberately NOT ignored: the build checks the upstream submodule commit and
+# stamps commit hashes into the assemblies.
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+*.user
+docker/data/
+docker/secrets/

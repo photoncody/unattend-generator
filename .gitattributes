@@ -1,0 +1,5 @@
+# Baselines are compared byte for byte. They keep the CRLF line endings that upstream writes,
+# so git must never convert them.
+baselines/*.xml -text
+
+*.sh text eol=lf

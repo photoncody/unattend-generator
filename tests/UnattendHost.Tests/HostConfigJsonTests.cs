@@ -1,0 +1,63 @@
+using System.Text.Json;
+using UnattendHost.Core;
+
+namespace UnattendHost.Tests;
+
+public class HostConfigJsonTests
+{
+    [Theory]
+    [MemberData(nameof(Shared.PresetNames), MemberType = typeof(Shared))]
+    public void Preset_RoundTripsThroughJson(string name)
+    {
+        var config = Shared.RepoPresets.Load(name);
+
+        string once = HostConfigJson.Serialize(config);
+        string twice = HostConfigJson.Serialize(HostConfigJson.Deserialize(once));
+
+        Assert.Equal(once, twice);
+    }
+
+    [Fact]
+    public void EmptyObject_GivesDefaults()
+    {
+        var config = HostConfigJson.Deserialize("{}");
+
+        Assert.Equal(HostConfigJson.Serialize(new HostConfig()), HostConfigJson.Serialize(config));
+    }
+
+    [Theory]
+    [InlineData("""{ "bogus": true }""")]
+    [InlineData("""{ "language": { "mode": "Unattended", "imagelanguage": "en-US", "bogus": 1 } }""")]
+    public void UnknownProperty_IsRejected(string json)
+    {
+        Assert.Throws<JsonException>(() => HostConfigJson.Deserialize(json));
+    }
+
+    [Fact]
+    public void NullForNonNullableProperty_IsRejected()
+    {
+        Assert.Throws<JsonException>(() => HostConfigJson.Deserialize("""{ "language": null }"""));
+    }
+
+    [Fact]
+    public void NumericEnumValue_IsRejected()
+    {
+        Assert.Throws<JsonException>(() => HostConfigJson.Deserialize("""{ "targetOs": 1 }"""));
+    }
+
+    [Fact]
+    public void MissingRequiredProperty_IsRejected()
+    {
+        string json = """{ "language": { "mode": "Unattended", "locales": [ { "locale": "en-US" } ] } }""";
+
+        Assert.Throws<JsonException>(() => HostConfigJson.Deserialize(json));
+    }
+
+    [Fact]
+    public void EnumsAreWrittenByName()
+    {
+        string json = HostConfigJson.Serialize(new HostConfig { TargetOs = TargetOs.Windows10 });
+
+        Assert.Contains("\"targetOs\": \"Windows10\"", json);
+    }
+}

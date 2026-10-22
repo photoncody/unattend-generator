@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\UnattendHost.Core\UnattendHost.Core.csproj" />
+  </ItemGroup>
+
+</Project>
