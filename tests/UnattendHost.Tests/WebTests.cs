@@ -116,6 +116,24 @@ public sealed partial class WebTests(WebApplicationFactory<Program> factory) : I
     }
 
     [Fact]
+    public async Task UploadingAPresetWithNullEntries_ShowsAnError()
+    {
+        using var client = factory.CreateClient();
+        string token = await GetAntiforgeryTokenAsync(client);
+
+        using var content = new MultipartFormDataContent
+        {
+            { new StringContent(token), "__RequestVerificationToken" },
+            { new StringContent("""{ "scripts": { "items": [ null ] } }"""), "presetFile", "preset.json" },
+        };
+        using var response = await client.PostAsync("/?handler=Upload", content, Cancel);
+        string html = await response.Content.ReadAsStringAsync(Cancel);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("scripts.items[0] must not be null", html);
+    }
+
+    [Fact]
     public async Task PostWithoutAntiforgeryToken_IsRejected()
     {
         using var client = factory.CreateClient();

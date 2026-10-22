@@ -46,6 +46,16 @@ public sealed class PresetStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_ReportsNullListEntries()
+    {
+        File.WriteAllText(Path.Combine(directory, "nulls.json"), """{ "scripts": { "items": [ null ] } }""");
+
+        var ex = Assert.Throws<PresetException>(() => new PresetStore(directory).Load("nulls"));
+
+        Assert.Contains("scripts.items[0]", ex.Message);
+    }
+
+    [Fact]
     public void List_ReturnsValidNamesInOrder_AndIgnoresOtherFiles()
     {
         File.WriteAllText(Path.Combine(directory, "b.json"), "{}");

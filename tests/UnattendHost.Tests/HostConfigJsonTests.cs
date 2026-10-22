@@ -39,6 +39,18 @@ public class HostConfigJsonTests
         Assert.Throws<JsonException>(() => HostConfigJson.Deserialize("""{ "language": null }"""));
     }
 
+    [Theory]
+    [InlineData("""{ "bloatware": [ null ] }""", "bloatware[0]")]
+    [InlineData("""{ "language": { "locales": [ null ] } }""", "language.locales[0]")]
+    [InlineData("""{ "accounts": { "users": [ { "name": "a" }, null ] } }""", "accounts.users[1]")]
+    [InlineData("""{ "scripts": { "items": [ null ] } }""", "scripts.items[0]")]
+    public void NullCollectionElement_IsRejected(string json, string path)
+    {
+        var ex = Assert.Throws<JsonException>(() => HostConfigJson.Deserialize(json));
+
+        Assert.Contains(path, ex.Message);
+    }
+
     [Fact]
     public void NumericEnumValue_IsRejected()
     {

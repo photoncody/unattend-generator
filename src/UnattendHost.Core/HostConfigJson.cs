@@ -33,8 +33,31 @@ public static class HostConfigJson
     /// <exception cref="JsonException">The JSON is malformed or does not match the schema.</exception>
     public static HostConfig Deserialize(string json)
     {
-        return JsonSerializer.Deserialize<HostConfig>(json, Options)
+        var config = JsonSerializer.Deserialize<HostConfig>(json, Options)
             ?? throw new JsonException("The preset is empty (null).");
+        RejectNullElements(config);
+        return config;
+    }
+
+    // RespectNullableAnnotations checks properties but not the elements of collections, so
+    // "items": [null] would otherwise get through and crash later code.
+    private static void RejectNullElements(HostConfig config)
+    {
+        Check(config.Bloatware, "bloatware");
+        Check(config.Language.Locales, "language.locales");
+        Check(config.Accounts.Users, "accounts.users");
+        Check(config.Scripts.Items, "scripts.items");
+
+        static void Check<T>(IReadOnlyList<T> items, string path)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (items[i] is null)
+                {
+                    throw new JsonException($"{path}[{i}] must not be null.");
+                }
+            }
+        }
     }
 
     public static string Serialize(HostConfig config)
