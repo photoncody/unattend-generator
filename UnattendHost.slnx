@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/external/" />
+  <Folder Name="/external/unattend-generator/">
+    <Project Path="external/unattend-generator/UnattendGenerator.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/UnattendHost.Core/UnattendHost.Core.csproj" />
+    <Project Path="src/UnattendHost.Web/UnattendHost.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UnattendHost.Tests/UnattendHost.Tests.csproj" />
+  </Folder>
+</Solution>

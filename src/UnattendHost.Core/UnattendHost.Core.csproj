@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Upstream is consumed read-only from the pinned submodule. Never edit files under external/. -->
+    <ProjectReference Include="..\..\external\unattend-generator\UnattendGenerator.csproj" />
+  </ItemGroup>
+
+</Project>
